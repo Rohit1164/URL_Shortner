@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>frontend</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" crossorigin src="/assets/index-BwRGca3g.js"></script>
+</head>
+
+<<<<<<< HEAD
+<body>
+  <div id="root"></div>
+=======
+<body class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-6">
+
+  <div class="max-w-3xl w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Left: Form -->
+    <div class="glass p-6 rounded-2xl shadow-lg">
+      <h1 class="text-2xl font-semibold text-slate-800 mb-2">URL Shortener</h1>
+      <p class="text-sm text-slate-600 mb-4">Paste a long URL and get a short, shareable link. Click Copy to copy the
+        short link.</p>
+
+      <label class="block text-sm font-medium text-slate-700">Enter URL</label>
+      <input id="urlInput" type="url" placeholder="https://example.com/very/long/link"
+        class="mt-2 mb-3 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+
+      <div class="flex gap-3">
+        <button id="shortenBtn" onclick="shortenURL()"
+          class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Shorten</button>
+
+        <button id="clearBtn" onclick="resetUI()"
+          class="px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50">Clear</button>
+      </div>
+
+      <div id="message" class="mt-4 text-sm"></div>
+
+      <!-- Result card -->
+      <div id="resultCard" class="mt-5 hidden p-4 rounded-lg border border-slate-100 bg-white shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="flex-1">
+            <label class="text-xs text-slate-500">Short URL</label>
+            <input id="shortUrl" readonly class="w-full mt-1 rounded-md border px-3 py-2 bg-slate-50" />
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <button id="copyBtn" onclick="copyURL()" class="px-3 py-2 rounded bg-slate-800 text-white">Copy</button>
+            <button id="openBtn" onclick="openShort()" class="px-3 py-2 rounded border">Open</button>
+          </div>
+        </div>
+
+        <div class="mt-3 flex items-center gap-3">
+          <div>
+            <label class="text-xs text-slate-500">QR</label>
+            <div id="qrWrap" class="mt-1 p-2 bg-slate-50 rounded">
+              <img id="qrImg" alt="QR" />
+            </div>
+          </div>
+
+          <div class="flex-1">
+            <label class="text-xs text-slate-500">Analytics</label>
+            <div class="mt-1 text-sm text-slate-600" id="analyticsSummary">Loading analytics…</div>
+          </div>
+        </div>
+
+        <div id="visitsListWrap" class="mt-3 hidden">
+          <label class="text-xs text-slate-500">Recent visits</label>
+          <ul id="visitsList" class="mt-2 text-sm divide-y divide-slate-100 max-h-40 overflow-auto"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Demo / How it works -->
+    <div class="p-6 rounded-2xl shadow-lg bg-white">
+      <h2 class="text-lg font-semibold text-slate-800">How it works</h2>
+      <ol class="mt-3 list-decimal list-inside text-sm text-slate-600 space-y-2">
+        <li>Paste or type a valid URL in the left box.</li>
+        <li>Click <strong>Shorten</strong>. The frontend calls <code>POST http://localhost:8000/url</code>.</li>
+        <li>You will get a short link and analytics summary if your backend exposes <code>/url/analytics/:id</code> as
+          JSON.</li>
+      </ol>
+
+      <div class="mt-6">
+        <h3 class="text-sm font-medium text-slate-700">Troubleshooting</h3>
+        <ul class="mt-2 text-sm text-slate-600 space-y-1">
+          <li>Enable CORS on your backend (see instructions above).</li>
+          <li>Your analytics endpoint must return JSON like: <code>{ totalclick: X, analytics: [...] }</code>.</li>
+          <li>If analytics endpoint redirects instead of returning JSON, this UI will detect it and show a message.</li>
+        </ul>
+      </div>
+
+      <div class="mt-6 text-xs text-slate-500">
+        Built with ❤️ — works with your existing Node/Express backend.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- CONFIG ----------
+    // const API_BASE = "http://localhost:8000/url"; // change if your backend is different
+    const API_BASE = "https://url-shortner-wtkz.onrender.com"; // change if your backend is different
+    // ----------------------------
+
+    const urlInput = document.getElementById("urlInput");
+    const message = document.getElementById("message");
+    const resultCard = document.getElementById("resultCard");
+    const shortUrlInput = document.getElementById("shortUrl");
+    const qrImg = document.getElementById("qrImg");
+    const analyticsSummary = document.getElementById("analyticsSummary");
+    const visitsListWrap = document.getElementById("visitsListWrap");
+    const visitsList = document.getElementById("visitsList");
+    const shortenBtn = document.getElementById("shortenBtn");
+
+    function showMessage(text, kind = "info") {
+      message.textContent = text;
+      message.className = kind === "error" ? "mt-4 text-sm text-red-600" : "mt-4 text-sm text-slate-600";
+    }
+
+    function resetUI() {
+      urlInput.value = "";
+      resultCard.classList.add("hidden");
+      message.textContent = "";
+      visitsList.innerHTML = "";
+      visitsListWrap.classList.add("hidden");
+    }
+
+    function isValidHttpUrl(string) {
+      try {
+        const url = new URL(string);
+        return url.protocol === "http:" || url.protocol === "https:";
+      } catch (_) {
+        return false;
+      }
+    }
+
+    async function shortenURL() {
+      const longUrl = urlInput.value.trim();
+      if (!longUrl) return showMessage("Please enter a URL", "error");
+      if (!isValidHttpUrl(longUrl)) return showMessage("Please enter a valid http(s) URL", "error");
+
+      shortenBtn.disabled = true;
+      shortenBtn.textContent = "Shortening…";
+      showMessage("");
+
+      try {
+        const resp = await fetch(API_BASE, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: longUrl })
+        });
+
+        const text = await resp.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          // backend returned non-json (maybe HTML redirect). show helpful info.
+          throw new Error(`Backend response was not JSON. Response: ${text.substring(0, 200)}`);
+        }
+
+        if (!resp.ok) {
+          // data might contain { error: "..." }
+          throw new Error((data && data.error) || "Server error");
+        }
+
+        // success: data.id (short id)
+        const id = data.id || data._id || data.shortId;
+        if (!id) throw new Error("Backend returned no id. Check POST /url response.");
+
+        const shortFull = `${API_BASE}/${id}`;
+        shortUrlInput.value = shortFull;
+        qrImg.src = `https://chart.googleapis.com/chart?cht=qr&chs=160x160&chl=${encodeURIComponent(shortFull)}`;
+
+        resultCard.classList.remove("hidden");
+        copyURL(false);
+        // fetch analytics (best-effort)
+        fetchAnalytics(id);
+      } catch (err) {
+        showMessage("Error: " + err.message, "error");
+      } finally {
+        shortenBtn.disabled = false;
+        shortenBtn.textContent = "Shorten";
+      }
+    }
+
+    async function fetchAnalytics(id) {
+      analyticsSummary.textContent = "Loading analytics…";
+      visitsList.innerHTML = "";
+      visitsListWrap.classList.add("hidden");
+
+      try {
+        const resp = await fetch(`${API_BASE}/analytics/${id}`, { method: "GET", redirect: "follow" });
+        // If backend returns html (redirect to target), content-type won't be JSON.
+        const contentType = resp.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          // try to read text and show helpful note
+          const body = await resp.text();
+          analyticsSummary.innerHTML = `<span class="text-red-600">Analytics endpoint did not return JSON. It may be redirecting to target URL.</span>
+          <div class="text-xs text-slate-500 mt-1">Server response starts with: ${escapeHtml(body).slice(0, 200)}</div>
+          <div class="text-xs text-slate-500 mt-1">Ensure <code>GET /url/analytics/:shortid</code> returns JSON like { totalclick: 3, analytics: [ { timeStamp: ... } ] }</div>`;
+          return;
+        }
+
+        const data = await resp.json();
+        const total = data.totalclick ?? (Array.isArray(data.analytics) ? data.analytics.length : 0);
+        analyticsSummary.innerHTML = `<strong>${total}</strong> total clicks`;
+
+        if (Array.isArray(data.analytics) && data.analytics.length > 0) {
+          visitsList.innerHTML = "";
+          // show most recent first
+          const items = data.analytics.slice().reverse();
+          items.forEach(item => {
+            const ts = Number(item.timeStamp ?? item.timestamp ?? item.timeStamp);
+            const li = document.createElement("li");
+            li.className = "py-2";
+            li.innerHTML = `<div class="text-xs text-slate-700">${formatDate(ts)}</div>
+                          <div class="text-xs text-slate-500">${timeAgo(ts)}</div>`;
+            visitsList.appendChild(li);
+          });
+          visitsListWrap.classList.remove("hidden");
+        } else {
+          visitsListWrap.classList.add("hidden");
+        }
+      } catch (err) {
+        analyticsSummary.textContent = "Could not load analytics: " + err.message;
+      }
+    }
+
+    function escapeHtml(str) {
+      return (str + "").replace(/[&<>"']/g, (s) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
+    }
+
+    function formatDate(ts) {
+      if (!ts) return "unknown";
+      const d = new Date(Number(ts));
+      return d.toLocaleString();
+    }
+    function timeAgo(ts) {
+      if (!ts) return "";
+      const s = Math.floor((Date.now() - Number(ts)) / 1000);
+      if (s < 60) return `${s}s ago`;
+      const m = Math.floor(s / 60);
+      if (m < 60) return `${m}m ago`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}h ago`;
+      const d = Math.floor(h / 24);
+      return `${d}d ago`;
+    }
+
+    function copyURL(showAlert = true) {
+      const val = shortUrlInput.value;
+      if (!val) return;
+      navigator.clipboard.writeText(val).then(() => {
+        if (showAlert) alert("Copied to clipboard ✅");
+        // small inline feedback
+        const old = document.getElementById("copyBtn").textContent;
+        document.getElementById("copyBtn").textContent = "Copied";
+        setTimeout(() => document.getElementById("copyBtn").textContent = old, 800);
+      }).catch(() => {
+        showMessage("Could not copy automatically. Select the link and press Ctrl+C", "error");
+      });
+    }
+
+    function openShort() {
+      const u = shortUrlInput.value;
+      if (!u) return;
+      window.open(u, "_blank");
+    }
+
+    // allow pressing Enter in input
+    urlInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") shortenURL();
+    });
+
+  </script>
+>>>>>>> 1bf7f9c15bec1c97dd7035c1b37f2c09662b563b
+</body>
+
+</html>
